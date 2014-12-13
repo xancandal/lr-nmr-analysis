@@ -1,8 +1,8 @@
 Simplified BSD License
 ======================
 
-Copyright (c) 2014-2015 by Xan Candal.
-Copyright (c) 2002-2013 by Michael Saunders.
+Copyright (c) 2014-2015 by Xan Candal.<br>
+Copyright (c) 2002-2013 by Michael Saunders.<br>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
