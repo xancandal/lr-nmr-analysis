@@ -1,4 +1,6 @@
-clear; 
+clc; clear; 
+% Working with single precision instead of default double precision
+%feature('SetPrecision', 24);
 %%% Signal 3 ..............................................................
 t2Values = [3.54e-3 21.54e-3 131.11e-3];
 amplitudes = [400 400 200];
@@ -8,7 +10,7 @@ snr_desired = 17395;
 % snr_4 = 285;
 
 %%% it must be a min distance 1.5 times between sampling rate and the first value of t2
-sampling_rate = 10^(log10(min(t2Values))-1.5)  % 1.5 times
+sampling_rate = 10^(log10(min(t2Values))-1.5);  % 1.5 times
 
 nbr_data_points = 16384;         % Discretizacion size of CPMG Signal, i.e. S(t) (m-size)
 sampling_period = 1e-4;         %% Delta t
@@ -22,17 +24,19 @@ for noise_level=2e-5:1e-4:2e-1
         break;
     end
 end
+%[data,snr] = CPMGSynthetic_signal3(t2Values, amplitudes, sampling_period, nbr_data_points, 0.2, n, deltaT, 1); % SNR 200
 fprintf('\n   Level noise:  %11.4e \n', noise_level)
 fprintf('\n   Signal-to-noise ratio:  %11.4e \n', snr)
 
 % Run PDCO with scaling
-A = zeros(nbr_data_points,n); 
-[A,xs] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT);
+As = zeros(nbr_data_points,n); 
+[As,xs,normA] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT);
 % Run PDCO without scaling
-B = zeros(nbr_data_points,n); 
-[B,x] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT, 0);
+AA = zeros(nbr_data_points,n);
+[AA,x] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT, 0);
 
 %--------------------------------------------------------------------------
+
 %%% Normal probability density function
 %sigma = 0.5;
 Ti = deltaT*(1:n);
@@ -51,9 +55,14 @@ pdfNormal(3,:) = normpdf(Ti, t2Values(3), 0.05);
 gaussians(3,:) = amplitudes(3) * pdfNormal(3,:)/max(pdfNormal(3,:));
 %gaussians_sum = sum(gaussians,1);
 
+% Eigenvalues of A^T*A (i.e. the squares of the singular values of A)
+singlevalues = svd(full(As));
+
+%--------------------------------------------------------------------------
+
 figure
 %%% Plot T2 Components and their Amplitudes
-subplot(311);
+subplot(211);
 hold on;
 stem(t2Values, amplitudes,'b');
 for k = 1:length(t2Values)
@@ -70,7 +79,7 @@ ylabel('Generated f(T2)');
 hold off;
 
 %%% Plot T2 Components and computed solutions with PDCO
-subplot(312);
+subplot(212);
 hold on;
 plot(sampling_period*(1:n),xs,'r');                     % ... PDCO scaled solution
 plot(sampling_period*(1:n),x,'b');                      % ... PDCO solution
@@ -80,27 +89,67 @@ axis([0.5*min(sampling_period) 2*max(t2Values) 0.8*min(xs) 1.2*max(xs)]);
 set(gca,'XScale','log');                                % Plot liner data on logarithmic axes
 legend('with scaling', 'without scaling', 'Location','northeast', 'Orientation','horizontal');
 legend('boxoff');
+hold off;
 xlabel('T2[sec]');
 ylabel('PDCO f(T2)');
+% print -djpg t2_pdco.jpg  % Print plot to jpg (Octave)
+
+idy = 1./t2Values;
+t = 0:sampling_period:(nbr_data_points-1)*sampling_period;
+figure
+%%% Plot Synthetic CPMG Signal, Components and Gaussian Noise 
+subplot(211);
+plot(data(:,1), data(:,2), 'b');
+hold on;
+%plot(data(:,1), noise, 'c');
+for k = 1:length(t2Values)
+    plot( data(:,1), (amplitudes(k) * exp(- idy(k) * t) ), 'r');
+end
 hold off;
+title('Synthetic CPMG Signal, Components and Gaussian Noise');
+xlabel('t[sec]');
+ylabel('Echo amplitude S(t)');
 
 %%% Plot Synthetic CPMG Signal building from ...
-subplot(313);
+subplot(212);
 m = numel(data(:,2));
 hold on;
-plot(sampling_period*(0:m-1),A*x,'r');                       % ... PDCO solution
-plot(sampling_period*(0:m-1),A*xs,'g');                      % ... PDCO scaled solution
+plot(sampling_period*(0:m-1),AA*x,'r');                      % ... PDCO solution
+plot(sampling_period*(0:m-1),As*xs,'g');                     % ... PDCO scaled solution
 plot(sampling_period*(0:m-1),data(:,2), 'k');                % ... generated solution
-set(gca,'XScale','log');                                     % Plot liner data on logarithmic axes
+set(gca,'XScale','log');                                     % Plot linear data on logarithmic axes
 legend('from PDCO sol', 'from PDCO scaled sol', 'from Generated sol', 'Location','northeast', 'Orientation','horizontal');
 legend('boxoff');
+hold off;
 xlabel('t[sec]');
 ylabel('Signal S(t)');
-% print -djpg figure.jpg  % Print plot to jpg (Octave)
-hold off;
+% print -djpg decay.jpg  % Print plot to jpg (Octave)
+
+figure
+%%% Plot Residuals for each iteration
+subplot(211);
+plot(log10(normA)  ,'b-')
+xlabel('No. of iterations (k)')
+ylabel('Residuals norm(Ar_{k-1})')
+title('Residuals for each iteration')
+
+%%% Plot the eigenvalues of A^T*A (i.e. the squares of the singular values of A)
+subplot(212);
+plot(singlevalues.^2,'b.')
+xlabel('Eigenvalue number')
+ylabel('\lambda(A^T*A)')
+title('Eigenvalues of A^T*A')
+% print -djpg res_eig.jpg  % Print plot to jpg (Octave)
+
+%%% Plots the sparsity pattern of any matrix A
+figure
+spy(As);
+% print -djpg spy.jpg  % Print plot to jpg (Octave)
+
+%--------------------------------------------------------------------------
 
 %%% Saving results (Octave)
-% save A.mat A -mat7-binary;
-% save B.mat B -mat7-binary;
+% save As.mat As -mat7-binary;
+% save AA.mat AA -mat7-binary;
 % save xs.mat xs -mat7-binary;
 % save x.mat x -mat7-binary;

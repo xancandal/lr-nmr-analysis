@@ -1,4 +1,4 @@
-function [A,x] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT, scale, wait)
+function [A,x,normA_out] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT, scale, wait)
 
 % PDCOSynthetic( data, sampling_period, n, snr );
 % It loads data matrix and runs it on pdco.m.
@@ -56,7 +56,8 @@ function [A,x] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT, s
   % Reference: G. M. Wing, "A Primer on Integral Equations of the
   % First Kind", SIAM, 1991. 
   %------------------------------------------------------------------------
-  A = zeros(m,n);                      % Initialization              
+ 
+  C = zeros(m,n);                      % Initialization              
   dT = deltaT;                         % Delta T 
   dt = sampling_period;                % Delta t
   Ti = dT*(1:n);
@@ -70,12 +71,29 @@ function [A,x] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT, s
   % ti = ac + dt*((0:m-1) - 0.5);
   
   [Tmat,tmat] = meshgrid(Ti,ti);     % Set up matrix
-  A = dT*exp(-tmat./Tmat);
-
+  C = dT*exp(-tmat./Tmat);
+  
   % A should be reasonably well scaled i.e. norm(A,inf)=~1
-  fprintf('\n   norm(A,inf):  %11.4e', norm(A,inf))
+  fprintf('\n   norm(A,inf):  %11.4e', norm(C,inf))
+  % Condition number of A
+  %cond(C);
+  
+  % Remove the elements of A < eps(precision)
+  Ad = zeros(m,n); 
+  for i=1:m
+    for j=1:n
+        if C(i,j)>eps('double')
+        %if C(i,j)>eps('single')
+            Ad(i,j) = C(i,j);
+        end
+    end
+  end
+  
+  % Converts a full matrix to sparse form by squeezing out any zero elements  
+  A = sparse(Ad);
+  
   %------------------------------------------------------------------------
-
+  
   if nargin < 6                 % scaling (default)
      scale = 1;   
   end
@@ -172,7 +190,7 @@ function [A,x] = PDCOSynthetic_signal3( data, sampling_period, n, snr, deltaT, s
   % [x,y,z,inform,PDitns,CGitns,time] = ...
   %   pdco( c,A,b,bl,bu,d1,d2,options,x0,y0,z0,xsize,zsize );  % to test PDCO
 
-  [x,y,z,inform,PDitns,CGitns,time] = ...
+  [x,y,z,inform,PDitns,CGitns,time,normA_out] = ...
     pdco( cop,A,b,bl,bu,d1,d2,options,x0,y0,z0,xsize,zsize );
   
   if scale                  % Unscale b,x,y,z

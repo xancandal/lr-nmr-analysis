@@ -1,4 +1,4 @@
-function [x,y,z,inform,PDitns,CGitns,time] = ...
+function [x,y,z,inform,PDitns,CGitns,time,normA_out,normAr_out] = ...
     pdco(pdObj,pdMat,b,bl,bu,d1,d2,options,x0,y0,z0,xsize,zsize)
 
 %-----------------------------------------------------------------------
@@ -56,54 +56,59 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
 % [obj,grad,hess] = pdObj( x       );         provided by user
 %               y = pdMat( mode,m,n,x );      provided by user if pdMat
 %                                             is a handle, not a matrix
-% lsmr.m    is required if options.Method = 3.
-% minres.m  is required if options.Method = 4.
+% lsmr.m        is required if options.Method = 3.
+% minres.m      is required if options.Method = 4.
 %
 % INPUT ARGUMENTS:
-% pdObj      may be an explicit n x 1 column vector c,
-%            or a function handle pdObj
-%            such that [obj,grad,hess] = pdObj(x) defines
-%            obj  = phi(x)              : a scalar,
-%            grad = gradient of phi(x)  : an n-vector,
-%            hess = diag(Hessian of phi): an n-vector.
-%         Examples:
-%            If phi(x) is the linear function c'*x, pdObj could be
-%            be the vector c, or the handle of a function that returns
-%               [obj,grad,hess] = [c'*x, c, zeros(n,1)].
-%            If phi(x) is the entropy function E(x) = sum x(j) log x(j),
-%            pdObj should return
-%               [obj,grad,hess] = [E(x), log(x)+1, 1./x].
-% pdMat      may be an explicit m x n matrix A (preferably sparse!),
-%            or a function handle such that  y = pdMat(mode,m,n,x )
-%            returns   y = A*x (mode=1)  or  y = A'*x (mode=2).
-% b          is an m-vector.
-% bl         is an n-vector of lower bounds.  Non-existent bounds
-%            may be represented by bl(j) = -Inf or bl(j) <= -1e+20.
-% bu         is an n-vector of upper bounds.  Non-existent bounds
-%            may be represented by bu(j) =  Inf or bu(j) >=  1e+20.
-% d1, d2     may be positive scalars or positive vectors (see above).
-% options    is a structure that may be set and altered by pdcoSet
-%            (type help pdcoSet).
-% x0, y0, z0 provide an initial solution.
-% xsize, zsize are estimates of the biggest x and z at the solution.
-%            They are used to scale (x,y,z).  Good estimates
-%            should improve the performance of the barrier method.
+% pdObj         may be an explicit n x 1 column vector c,
+%               or a function handle pdObj
+%               such that [obj,grad,hess] = pdObj(x) defines
+%               obj  = phi(x)              : a scalar,
+%               grad = gradient of phi(x)  : an n-vector,
+%               hess = diag(Hessian of phi): an n-vector.
+%            Examples:
+%               If phi(x) is the linear function c'*x, pdObj could be
+%               be the vector c, or the handle of a function that returns
+%                  [obj,grad,hess] = [c'*x, c, zeros(n,1)].
+%               If phi(x) is the entropy function E(x) = sum x(j) log x(j),
+%               pdObj should return
+%                  [obj,grad,hess] = [E(x), log(x)+1, 1./x].
+% pdMat         may be an explicit m x n matrix A (preferably sparse!),
+%               or a function handle such that  y = pdMat(mode,m,n,x )
+%               returns   y = A*x (mode=1)  or  y = A'*x (mode=2).
+% b             is an m-vector.
+% bl            is an n-vector of lower bounds.  Non-existent bounds
+%               may be represented by bl(j) = -Inf or bl(j) <= -1e+20.
+% bu            is an n-vector of upper bounds.  Non-existent bounds
+%               may be represented by bu(j) =  Inf or bu(j) >=  1e+20.
+% d1, d2        may be positive scalars or positive vectors (see above).
+% options       is a structure that may be set and altered by pdcoSet
+%               (type help pdcoSet).
+% x0, y0, z0    provide an initial solution.
+% xsize, zsize  are estimates of the biggest x and z at the solution.
+%               They are used to scale (x,y,z).  Good estimates
+%               should improve the performance of the barrier method.
 %
 %
 % OUTPUT ARGUMENTS:
-% x          is the primal solution.
-% y          is the dual solution associated with Ax + D2 r = b.
-% z          is the dual solution associated with bl <= x <= bu.
-% inform = 0 if a solution is found;
-%        = 1 if too many iterations were required;
-%        = 2 if the linesearch failed too often;
-%        = 3 if the step lengths became too small;
-%        = 4 if Cholesky said ADDA was not positive definite.
-% PDitns     is the number of Primal-Dual Barrier iterations required.
-% CGitns     is the number of Conjugate-Gradient  iterations required
-%            if an iterative solver is used (LSMR or MINRES).
-% time       is the cpu time used (via cputime).
-%            We also use tic/toc to allow for multicore systems.
+% x             is the primal solution.
+% y             is the dual solution associated with Ax + D2 r = b.
+% z             is the dual solution associated with bl <= x <= bu.
+% inform = 0    if a solution is found;
+%        = 1    if too many iterations were required;
+%        = 2    if the linesearch failed too often;
+%        = 3    if the step lengths became too small;
+%        = 4    if Cholesky said ADDA was not positive definite.
+% PDitns        is the number of Primal-Dual Barrier iterations required.
+% CGitns        is the number of Conjugate-Gradient  iterations required
+%               if an iterative solver is used (LSMR or MINRES).
+% time          is the cpu time used (via cputime).
+%               We also use tic/toc to allow for multicore systems.
+% normAr_out    is a n array with an estimate of the residual for the 
+%               normal equation: NORMAR = NORM(A'*(B-A*X)). Only for 
+%               the MINRES method.
+% normA_out     is an array with an estimate of the Frobenius norm of A.
+%               Only for the LSMR method.
 %----------------------------------------------------------------------
 
 % PRIVATE FUNCTIONS:
@@ -140,6 +145,7 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
 %    (CMM) Chris Maes, ICME, Stanford University    (cmaes@stanford.edu)
 %    (SA ) Santiago Akle, ICME, Stanford University (akle@stanford.edu)
 %    (MZ ) Matt Zahr, ICME, Stanford University     (mzahr@stanford.edu)
+%    (XC ) Xan Candal, Santiago de Compostela University (xan.candal@gmail.com)
 %
 % DEVELOPMENT:
 % 20 Jun 1997: Original version of pdsco.m derived from pdlp0.m.
@@ -213,6 +219,9 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
 % 13 Jun 2013: (MZ) Added support for Method 22 for CME 338 project.
 % 22 Nov 2013: (MAS) Various things polished up.  Method 22 made available.
 % 23 Nov 2013: Restored options.backtrack.
+% 26 Feb 2015: Adding outputs of an estimate of the residual for the normal
+%              equation: NORMAR = NORM(A'*(B-A*X)) and an estimate of the 
+%              Frobenius norm of A. Only for the MINRES or LSMR method.
 %-----------------------------------------------------------------------
 
   PriLev   = options.Print;
@@ -235,8 +244,7 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
 
   m = length(b);
   n = length(bl);
-
-
+  
   %---------------------------------------------------------------------
   % Decode pdObj.
   %---------------------------------------------------------------------
@@ -714,7 +722,7 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
             = lsmr(mat_lsmr_handle, rhs, damp, atol, btol, conlim,  ...
                    itnlim, [], show);  % dont set localSize
 
-        %[ dy, istop, itncg, dr1norm, dr2norm, danorm, dacond, ...
+               %[ dy, istop, itncg, dr1norm, dr2norm, danorm, dacond, ...
         %  darnorm, dxnorm, dvar, dcov, outfo ] = ...
         %    lsqr( nb,m,matvechandle,rhs,damp,atol,btol,conlim, ...
         %          itnlim,show,[],[],stophandle);   % Don't want var or cov
@@ -728,7 +736,10 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
         atolold   = atol;
         r3ratio   = normAr/fmerit;
         CGitns    = CGitns + itncg;
-      
+        
+        % Save an array with an estimate of the Frobenius norm of A
+        normA_out(PDitns) = normA;
+                                     
       elseif Method ==4
         % --------------------------------------------------------------
         % Method=4.  Use MINRES (iterative solve) to get dy.
@@ -763,6 +774,9 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
         r3ratio = normr/fmerit; 
         CGitns  = CGitns + itnm;
 
+        % Save an array with an estimate of the residual for the normal equation: NORMAR = NORM(A'*(B-A*X))
+        normAr_out(PDitns) = normAr;
+        
       elseif Method==5
         % --------------------------------------------------------------
         % Method=5.  Use PCG (iterative solve) to get dy.

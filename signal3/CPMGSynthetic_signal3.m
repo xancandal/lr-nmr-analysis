@@ -129,35 +129,6 @@ if draw
     %%% Last 6.25% signal's points "minus" Line linear regression
     figure
     plot(ti,xi,'r')
-    
-    %%% Plot Synthetic CPMG Signal, Components and Gaussian Noise 
-    figure
-    subplot(211);
-    plot(data(:,1), data(:,2), 'b');
-    hold on;
-    %plot(data(:,1), noise, 'c');
-    for k = 1:length(t2Values)
-        plot( data(:,1), (amplitudes(k) * exp(- idy(k) * t) ), 'r');
-    end
-    hold off;
-    title('Synthetic CPMG Signal, Components and Gaussian Noise');
-    xlabel('t[sec]');
-    ylabel('Echo amplitude S(t)');
-    
-    %%% Plot T2 Components and their Amplitudes
-    gaussians_sum = sum(gaussians,1);
-    subplot(212);
-    hold on;
-    stem(t2Values, amplitudes,'b');
-%     for k = 1:length(t2Values)
-%         plot(Ti, gaussians(k,:),'r'); 
-%     end
-    plot(Ti, gaussians_sum,'r');
-    %set(gca,'XScale','log');  % Plot liner data on logarithmic axes
-    title('T2 Components and their Amplitudes');
-    xlabel('T2[sec]');
-    ylabel('Amplitudes');
-    hold off;
 end
 
 if wait
