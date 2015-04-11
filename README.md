@@ -1,6 +1,6 @@
 # Analysis of data from low-resolution NMR relaxometry
 
-In this work, we apply advanced sparse representation tools to the problem of LR-NMR relaxometry. 
+In this job, we apply advanced sparse representation tools to the problem of LR-NMR relaxometry. 
 
 What can it do?
 ------
