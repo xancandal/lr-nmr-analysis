@@ -1,9 +1,9 @@
-function [x,y,z,inform,PDitns,CGitns,time,normA_out,normAr_out] = ...
+function [x,y,z,inform,PDitns,CGitns,time,normr_out] = ...
     pdco(pdObj,pdMat,b,bl,bu,d1,d2,options,x0,y0,z0,xsize,zsize)
 
-%-----------------------------------------------------------------------
+%--------------------------------------------------------------------------
 % pdco.m: Primal-Dual Barrier Method for Convex Objectives (23 Nov 2013)
-%-----------------------------------------------------------------------
+%--------------------------------------------------------------------------
 %        [x,y,z,inform,PDitns,CGitns,time] = ...
 %   pdco(pdObj,pdMat,b,bl,bu,d1,d2,options,x0,y0,z0,xsize,zsize);
 %
@@ -104,12 +104,9 @@ function [x,y,z,inform,PDitns,CGitns,time,normA_out,normAr_out] = ...
 %               if an iterative solver is used (LSMR or MINRES).
 % time          is the cpu time used (via cputime).
 %               We also use tic/toc to allow for multicore systems.
-% normAr_out    is a n array with an estimate of the residual for the 
-%               normal equation: NORMAR = NORM(A'*(B-A*X)). Only for 
-%               the MINRES method.
-% normA_out     is an array with an estimate of the Frobenius norm of A.
-%               Only for the LSMR method.
-%----------------------------------------------------------------------
+% normr_out     is a n array with an estimate of the residual: NORM(b-A*x)
+%               (LSMR or MINRES).
+%--------------------------------------------------------------------------
 
 % PRIVATE FUNCTIONS:
 %    pdxxxbounds
@@ -141,11 +138,11 @@ function [x,y,z,inform,PDitns,CGitns,time,normA_out,normAr_out] = ...
 %    http://www.stanford.edu/~saunders/
 %
 % CONTRIBUTORS:
-%    (BK ) Byunggyoo Kim, Samsung, Seoul, Korea     (hightree@samsung.co.kr)
-%    (CMM) Chris Maes, ICME, Stanford University    (cmaes@stanford.edu)
-%    (SA ) Santiago Akle, ICME, Stanford University (akle@stanford.edu)
-%    (MZ ) Matt Zahr, ICME, Stanford University     (mzahr@stanford.edu)
-%    (XC ) Xan Candal, Santiago de Compostela University (xan.candal@gmail.com)
+%   (BK ) Byunggyoo Kim, Samsung, Seoul, Korea        (hightree@samsung.co.kr)
+%   (CMM) Chris Maes, ICME, Stanford University           (cmaes@stanford.edu)
+%   (SA ) Santiago Akle, ICME, Stanford University         (akle@stanford.edu)
+%   (MZ ) Matt Zahr, ICME, Stanford University            (mzahr@stanford.edu)
+%   (XC ) Xan Candal, Santiago de Compostela University (xan.candal@gmail.com)
 %
 % DEVELOPMENT:
 % 20 Jun 1997: Original version of pdsco.m derived from pdlp0.m.
@@ -219,10 +216,9 @@ function [x,y,z,inform,PDitns,CGitns,time,normA_out,normAr_out] = ...
 % 13 Jun 2013: (MZ) Added support for Method 22 for CME 338 project.
 % 22 Nov 2013: (MAS) Various things polished up.  Method 22 made available.
 % 23 Nov 2013: Restored options.backtrack.
-% 26 Feb 2015: Adding outputs of an estimate of the residual for the normal
-%              equation: NORMAR = NORM(A'*(B-A*X)) and an estimate of the 
-%              Frobenius norm of A. Only for the MINRES or LSMR method.
-%-----------------------------------------------------------------------
+% 16 May 2015: Adding output of an estimate of the residual: NORM(b-A*x)
+%              (LSMR or MINRES).
+%--------------------------------------------------------------------------
 
   PriLev   = options.Print;
   wait     = options.wait;
@@ -232,13 +228,14 @@ function [x,y,z,inform,PDitns,CGitns,time,normA_out,normAr_out] = ...
 
   if PriLev > 0
     fprintf('\n   --------------------------------------------------------')
-    fprintf('\n   pdco.m                            Version of 23 Nov 2013')
+    fprintf('\n   pdco.m                            Version of 16 May 2015')
     fprintf('\n   Primal-dual barrier method to minimize a convex function')
     fprintf('\n   subject to linear constraints Ax + r = b,  bl <= x <= bu')
     fprintf('\n                                                           ')
     fprintf('\n   Michael Saunders       SOL and ICME, Stanford University')
     fprintf('\n   Contributors:     Byunggyoo Kim (SOL), Chris Maes (ICME)')
     fprintf('\n                     Santiago Akle (ICME), Matt Zahr (ICME)')
+    fprintf('\n             Xan Candal (Santiago de Compostela University)')
     fprintf('\n   --------------------------------------------------------\n')
   end
 
@@ -737,8 +734,8 @@ function [x,y,z,inform,PDitns,CGitns,time,normA_out,normAr_out] = ...
         r3ratio   = normAr/fmerit;
         CGitns    = CGitns + itncg;
         
-        % Save an array with an estimate of the Frobenius norm of A
-        normA_out(PDitns) = normA;
+        % Save an array with an estimate of the residual: NORM(b-A*x)
+        normr_out(PDitns) = normr;
                                      
       elseif Method ==4
         % --------------------------------------------------------------
@@ -774,8 +771,8 @@ function [x,y,z,inform,PDitns,CGitns,time,normA_out,normAr_out] = ...
         r3ratio = normr/fmerit; 
         CGitns  = CGitns + itnm;
 
-        % Save an array with an estimate of the residual for the normal equation: NORMAR = NORM(A'*(B-A*X))
-        normAr_out(PDitns) = normAr;
+        % Save an array with an estimate of the residual: NORM(b-A*x)
+        normr_out(PDitns) = normr;
         
       elseif Method==5
         % --------------------------------------------------------------
