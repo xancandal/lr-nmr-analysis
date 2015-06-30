@@ -1,4 +1,4 @@
-Modified BSD License
+BSD 3-Clause License
 ====================
 
 Copyright (c) 2014-2015 by Xan Candal.<br>
